@@ -81,20 +81,20 @@ func NewClient(logger log.Logger, url string, timeout time.Duration) *Client {
 // StoreSamplesRequest is used for building a JSON request for storing samples
 // via the OpenTSDB.
 type StoreSamplesRequest struct {
-	Metric    TagValue            `json:"metric"`
-	Timestamp int64               `json:"timestamp"`
-	Value     float64             `json:"value"`
-	Tags      map[string]TagValue `json:"tags"`
+	Metric    string            `json:"metric"`
+	Timestamp int64             `json:"timestamp"`
+	Value     float64           `json:"value"`
+	Tags      map[string]string `json:"tags"`
 }
 
 // tagsFromMetric translates Prometheus metric into OpenTSDB tags.
-func tagsFromMetric(m model.Metric) map[string]TagValue {
-	tags := make(map[string]TagValue, len(m)-1)
+func tagsFromMetric(m model.Metric) map[string]string {
+	tags := make(map[string]string, len(m)-1)
 	for l, v := range m {
 		if l == model.MetricNameLabel {
 			continue
 		}
-		tags[string(l)] = TagValue(v)
+		tags[string(l)] = string(v)
 	}
 	return tags
 }
@@ -108,7 +108,7 @@ func (c *Client) Write(samples model.Samples) error {
 			// level.Debug(c.logger).Log("msg", "cannot send value to OpenTSDB, skipping sample", "value", v, "sample", s)
 			continue
 		}
-		metric := TagValue(s.Metric[model.MetricNameLabel])
+		metric := string(s.Metric[model.MetricNameLabel])
 		reqs = append(reqs, StoreSamplesRequest{
 			Metric:    metric,
 			Timestamp: s.Timestamp.Unix(),
@@ -258,7 +258,7 @@ loop:
 	return &resp, nil
 }
 
-func concatLabels(labels map[string]TagValue) string {
+func concatLabels(labels map[string]string) string {
 	// 0xff cannot cannot occur in valid UTF-8 sequences, so use it
 	// as a separator here.
 	separator := "\xff"
@@ -269,7 +269,7 @@ func concatLabels(labels map[string]TagValue) string {
 	return strings.Join(pairs, separator)
 }
 
-func tagsToLabelPairs(name string, tags map[string]TagValue) []*prompb.Label {
+func tagsToLabelPairs(name string, tags map[string]string) []*prompb.Label {
 	pairs := make([]*prompb.Label, 0, len(tags))
 	for k, v := range tags {
 		pairs = append(pairs, &prompb.Label{
@@ -364,7 +364,7 @@ func (c *Client) buildQueryReq(q *prompb.Query) (*otdbQueryReq, seriesMatcher, e
 		if m.Name == model.MetricNameLabel {
 			switch m.Type {
 			case prompb.LabelMatcher_EQ:
-				qr.Metric = TagValue(m.Value)
+				qr.Metric = string(m.Value)
 			default:
 				// TODO: Figure out how to support these efficiently.
 				return nil, nil, fmt.Errorf("regex, non-equal or regex-non-equal matchers are not supported on the metric name yet")

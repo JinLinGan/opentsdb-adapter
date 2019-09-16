@@ -6,9 +6,9 @@ import (
 
 type seriesMatcher []*LabelMatcher
 
-func (s seriesMatcher) Match(tags map[string]TagValue) bool {
+func (s seriesMatcher) Match(tags map[string]string) bool {
 	if tags == nil {
-		tags = make(map[string]TagValue)
+		tags = make(map[string]string)
 	}
 	for _, m := range s {
 		if !m.Match(string(tags[m.Name])) {

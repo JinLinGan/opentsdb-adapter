@@ -14,9 +14,6 @@
 package opentsdb
 
 import (
-	"bytes"
-	"fmt"
-
 	"github.com/prometheus/common/model"
 )
 
@@ -62,30 +59,33 @@ type TagValue model.LabelValue
 //
 // "日" -> "_E6_97_A5"
 func (tv TagValue) MarshalJSON() ([]byte, error) {
-	length := len(tv)
-	// Need at least two more bytes than in tv.
-	result := bytes.NewBuffer(make([]byte, 0, length+2))
-	result.WriteByte('"')
-	if length == 0 {
-		result.WriteString(defaultEmptyTagValue)
-	}
-	for i := 0; i < length; i++ {
-		b := tv[i]
-		switch {
-		case (b >= '-' && b <= '9') || // '-', '.', '/', 0-9
-			(b >= 'A' && b <= 'Z') ||
-			(b >= 'a' && b <= 'z'):
-			result.WriteByte(b)
-		case b == '_':
-			result.WriteString("__")
-		case b == ':':
-			result.WriteString("_.")
-		default:
-			result.WriteString(fmt.Sprintf("_%X", b))
-		}
-	}
-	result.WriteByte('"')
-	return result.Bytes(), nil
+	// fmt.Printf("MarshalJSON TagValue = %s \n", tv)
+	// length := len(tv)
+	// // Need at least two more bytes than in tv.
+	// result := bytes.NewBuffer(make([]byte, 0, length+2))
+	// result.WriteByte('"')
+	// if length == 0 {
+	// 	result.WriteString(defaultEmptyTagValue)
+	// }
+	// for i := 0; i < length; i++ {
+	// 	b := tv[i]
+	// 	// switch {
+	// 	// case (b >= '-' && b <= '9') || // '-', '.', '/', 0-9
+	// 	// 	(b >= 'A' && b <= 'Z') ||
+	// 	// 	(b >= 'a' && b <= 'z') || b == '_':
+	// 	// 	result.WriteByte(b)
+	// 	// // case b == '_':
+	// 	// // 	result.WriteString("__")
+	// 	// // case b == ':':
+	// 	// // 	result.WriteString("_.")
+	// 	// default:
+	// 	// 	// result.WriteString(fmt.Sprintf("_%X", b))
+	// 	// 	result.WriteString(strconv.QuoteToASCII(b))
+	// 	// }
+	// 	result.WriteByte(b)
+	// }
+	// result.WriteByte('"')
+	return []byte(tv), nil
 }
 
 const defaultEmptyTagValue = "_-"
@@ -93,96 +93,99 @@ const defaultEmptyTagValue = "_-"
 // UnmarshalJSON unmarshals JSON strings coming from OpenTSDB into Go strings
 // by applying the inverse of what is described for the MarshalJSON method.
 func (tv *TagValue) UnmarshalJSON(json []byte) error {
-	escapeLevel := 0 // How many bytes after '_'.
-	var parsedByte byte
+	// fmt.Printf("UnmarshalJSON TagValue = %s \n", string(json))
+	// escapeLevel := 0 // How many bytes after '_'.
+	// var parsedByte byte
 
-	// Might need fewer bytes, but let's avoid realloc.
-	result := bytes.NewBuffer(make([]byte, 0, len(json)-2))
+	// // Might need fewer bytes, but let's avoid realloc.
+	// result := bytes.NewBuffer(make([]byte, 0, len(json)-2))
 
-	for i, b := range json {
-		if i == 0 {
-			if b != '"' {
-				return fmt.Errorf("expected '\"', got %q", b)
-			}
-			continue
-		}
-		if i == len(json)-1 {
-			if b != '"' {
-				return fmt.Errorf("expected '\"', got %q", b)
-			}
-			break
-		}
-		switch escapeLevel {
-		case 0:
-			if b == '_' {
-				escapeLevel = 1
-				continue
-			}
-			result.WriteByte(b)
-		case 1:
-			switch {
-			case b == '_':
-				result.WriteByte('_')
-				escapeLevel = 0
-			case b == '.':
-				result.WriteByte(':')
-				escapeLevel = 0
-			case b == '-':
-				escapeLevel = 0
-			case b >= '0' && b <= '9':
-				parsedByte = (b - 48) << 4
-				escapeLevel = 2
-			case b >= 'A' && b <= 'F': // A-F
-				parsedByte = (b - 55) << 4
-				escapeLevel = 2
-			default:
-				return fmt.Errorf(
-					"illegal escape sequence at byte %d (%c)",
-					i, b,
-				)
-			}
-		case 2:
-			switch {
-			case b >= '0' && b <= '9':
-				parsedByte += b - 48
-			case b >= 'A' && b <= 'F': // A-F
-				parsedByte += b - 55
-			default:
-				return fmt.Errorf(
-					"illegal escape sequence at byte %d (%c)",
-					i, b,
-				)
-			}
-			result.WriteByte(parsedByte)
-			escapeLevel = 0
-		default:
-			panic("unexpected escape level")
-		}
-	}
-	*tv = TagValue(result.String())
+	// for i, b := range json {
+	// 	if i == 0 {
+	// 		if b != '"' {
+	// 			return fmt.Errorf("expected '\"', got %q", b)
+	// 		}
+	// 		continue
+	// 	}
+	// 	if i == len(json)-1 {
+	// 		if b != '"' {
+	// 			return fmt.Errorf("expected '\"', got %q", b)
+	// 		}
+	// 		break
+	// 	}
+	// 	switch escapeLevel {
+	// 	case 0:
+	// 		if b == '_' {
+	// 			escapeLevel = 1
+	// 			continue
+	// 		}
+	// 		result.WriteByte(b)
+	// 	case 1:
+	// 		switch {
+	// 		case b == '_':
+	// 			result.WriteByte('_')
+	// 			escapeLevel = 0
+	// 		case b == '.':
+	// 			result.WriteByte(':')
+	// 			escapeLevel = 0
+	// 		case b == '-':
+	// 			escapeLevel = 0
+	// 		case b >= '0' && b <= '9':
+	// 			parsedByte = (b - 48) << 4
+	// 			escapeLevel = 2
+	// 		case b >= 'A' && b <= 'F': // A-F
+	// 			parsedByte = (b - 55) << 4
+	// 			escapeLevel = 2
+	// 		default:
+	// 			return fmt.Errorf(
+	// 				"illegal escape sequence at byte %d (%c) %s",
+	// 				i, b, json,
+	// 			)
+	// 		}
+	// 	case 2:
+	// 		switch {
+	// 		case b >= '0' && b <= '9':
+	// 			parsedByte += b - 48
+	// 		case b >= 'A' && b <= 'F': // A-F
+	// 			parsedByte += b - 55
+	// 		default:
+	// 			return fmt.Errorf(
+	// 				"illegal escape sequence at byte %d (%c)",
+	// 				i, b,
+	// 			)
+	// 		}
+	// 		result.WriteByte(parsedByte)
+	// 		escapeLevel = 0
+	// 	default:
+	// 		panic("unexpected escape level")
+	// 	}
+	// }
+	// fmt.Printf("\"%s\"", string(json))
+	*tv = TagValue(string(json))
 	return nil
 }
 
 func toTagValue(tv string) string {
-	length := len(tv)
-	if length == 0 {
-		return defaultEmptyTagValue
-	}
-	result := bytes.NewBuffer(make([]byte, 0, length))
-	for i := 0; i < length; i++ {
-		b := tv[i]
-		switch {
-		case (b >= '-' && b <= '9') || // '-', '.', '/', 0-9
-			(b >= 'A' && b <= 'Z') ||
-			(b >= 'a' && b <= 'z'):
-			result.WriteByte(b)
-		case b == '_':
-			result.WriteString("__")
-		case b == ':':
-			result.WriteString("_.")
-		default:
-			result.WriteString(fmt.Sprintf("_%X", b))
-		}
-	}
-	return result.String()
+	// length := len(tv)
+	// if length == 0 {
+	// 	return defaultEmptyTagValue
+	// }
+	// result := bytes.NewBuffer(make([]byte, 0, length))
+	// for i := 0; i < length; i++ {
+	// 	b := tv[i]
+	// 	switch {
+	// 	case (b >= '-' && b <= '9') || // '-', '.', '/', 0-9
+	// 		(b >= 'A' && b <= 'Z') ||
+	// 		(b >= 'a' && b <= 'z'):
+	// 		result.WriteByte(b)
+	// 	case b == '_':
+	// 		result.WriteString("__")
+	// 	case b == ':':
+	// 		result.WriteString("_.")
+	// 	default:
+	// 		result.WriteString(fmt.Sprintf("_%X", b))
+	// 	}
+	// }
+	// return result.String()
+	return tv
 }
